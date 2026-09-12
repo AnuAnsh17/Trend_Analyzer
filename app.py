@@ -697,3 +697,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# Export top-level serverless variables to prevent Vercel auto-detection errors
+def handler(request=None, *args, **kwargs):
+    return {"statusCode": 200, "body": "NIFTY 50 Statistical Trend Analyzer"}
+
+app = application = handler

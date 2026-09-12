@@ -1,6 +1,7 @@
 {
-  "version": 2,
   "outputDirectory": "public",
   "cleanUrls": true,
-  "buildCommand": "python scripts/build_vercel.py"
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

@@ -1,0 +1,10 @@
+# Ignore root Python files from Vercel's serverless function scanner
+# The app is deployed on Vercel as a static client-side bundle via public/
+app.py
+requirements.txt
+src/
+data/
+tests/
+scripts/
+.venv/
+.pytest_cache/
