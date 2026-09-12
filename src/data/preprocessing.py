@@ -7,7 +7,11 @@ from pathlib import Path
 from typing import Dict, Any, Tuple
 import pandas as pd
 from src.data.provider import DataProvider
-from src.data.yfinance_provider import YFinanceProvider
+
+try:
+    from src.data.yfinance_provider import YFinanceProvider
+except (ImportError, Exception):
+    YFinanceProvider = None
 
 
 @dataclass
@@ -42,7 +46,15 @@ class DataPipeline:
         self.raw_dir.mkdir(parents=True, exist_ok=True)
         self.processed_dir.mkdir(parents=True, exist_ok=True)
         
-        self.provider = provider if provider else YFinanceProvider()
+        if provider:
+            self.provider = provider
+        elif YFinanceProvider is not None:
+            try:
+                self.provider = YFinanceProvider()
+            except Exception:
+                self.provider = None
+        else:
+            self.provider = None
 
     def fetch_and_process(self, force_refresh: bool = False, period_years: int = 10) -> Tuple[pd.DataFrame, DatasetReport]:
         """
@@ -54,6 +66,17 @@ class DataPipeline:
             df_processed = df_processed.sort_values('Date').reset_index(drop=True)
             report = self.generate_report(df_processed)
             return df_processed, report
+
+        # If live provider is unavailable, fallback gracefully to cached dataset
+        if self.provider is None:
+            if self.processed_file.exists():
+                df_processed = pd.read_csv(self.processed_file)
+                df_processed['Date'] = pd.to_datetime(df_processed['Date'])
+                df_processed = df_processed.sort_values('Date').reset_index(drop=True)
+                report = self.generate_report(df_processed)
+                report.validation_message = "Serving cached NIFTY 50 dataset (live market API feed is unavailable in this runtime)."
+                return df_processed, report
+            raise RuntimeError("Market data provider is unavailable and no local cached data was found.")
 
         # Fetch fresh data from provider
         df_raw = self.provider.fetch_historical_data(ticker="^NSEI", period_years=period_years)

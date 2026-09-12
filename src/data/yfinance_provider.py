@@ -1,10 +1,15 @@
 """
 Yahoo Finance data provider implementation for NIFTY 50 (^NSEI).
+Gracefully handles environments where yfinance is not available (e.g. Pyodide/WebAssembly).
 """
 import datetime
 import pandas as pd
-import yfinance as yf
 from src.data.provider import DataProvider
+
+try:
+    import yfinance as yf
+except ImportError:
+    yf = None
 
 
 class YFinanceProvider(DataProvider):
@@ -19,6 +24,9 @@ class YFinanceProvider(DataProvider):
         """
         Retrieves ~10 years of daily historical data for the given ticker.
         """
+        if yf is None:
+            raise RuntimeError("yfinance is not installed or supported in this runtime environment.")
+
         symbol = ticker if ticker else self.default_symbol
         end_date = datetime.date.today()
         start_date = end_date - datetime.timedelta(days=period_years * 365 + 30)
