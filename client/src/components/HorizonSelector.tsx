@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { CalendarRange, Sparkles } from 'lucide-react';
+import { Sparkles, CalendarRange } from 'lucide-react';
 
 export type Horizon = '1Y' | '3Y' | '5Y' | '10Y' | 'Custom';
 
@@ -26,75 +26,42 @@ export const HorizonSelector: React.FC<HorizonSelectorProps> = ({
   maxDate,
   totalFiltered,
 }) => {
-  const horizons: { key: Horizon; label: string; sub: string }[] = [
-    { key: '1Y', label: '1 Year', sub: 'Short-term horizon' },
-    { key: '3Y', label: '3 Years', sub: 'Medium-term cyclical' },
-    { key: '5Y', label: '5 Years', sub: 'Long-term structural' },
-    { key: '10Y', label: '10 Years', sub: 'Full secular cycle' },
-    { key: 'Custom', label: 'Custom Window', sub: 'User-specified bounds' },
-  ];
+  const horizons: Horizon[] = ['1Y', '3Y', '5Y', '10Y', 'Custom'];
 
   return (
-    <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 shadow-sm">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        
-        {/* Horizon Pills */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mr-1 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-            Time Horizon:
-          </span>
-          {horizons.map(h => {
-            const isActive = currentHorizon === h.key;
-            return (
-              <button
-                key={h.key}
-                onClick={() => onSelect(h.key)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer ${
-                  isActive
-                    ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20 font-bold'
-                    : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700/80 hover:text-white border border-slate-700/60'
-                }`}
-                title={h.sub}
-              >
-                {h.label}
-              </button>
-            );
-          })}
-        </div>
+    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mr-2 flex items-center gap-1">
+          <Sparkles className="w-4 h-4 text-indigo-400" />
+          Timeframe
+        </span>
+        {horizons.map(h => (
+          <button
+            key={h}
+            onClick={() => onSelect(h)}
+            className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+              currentHorizon === h
+                ? 'bg-slate-900 text-white shadow-md'
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200'
+            }`}
+          >
+            {h}
+          </button>
+        ))}
+      </div>
 
-        {/* Custom Range Controls or Summary */}
-        <div className="flex items-center gap-3">
-          {currentHorizon === 'Custom' ? (
-            <div className="flex items-center gap-2 text-xs bg-slate-950/80 border border-slate-800 rounded-lg px-2.5 py-1">
-              <CalendarRange className="w-3.5 h-3.5 text-indigo-400" />
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="date"
-                  value={customStart}
-                  min={minDate}
-                  max={customEnd || maxDate}
-                  onChange={(e) => onStartChange(e.target.value)}
-                  className="bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-slate-200 text-xs focus:outline-none focus:border-cyan-500"
-                />
-                <span className="text-slate-500">to</span>
-                <input
-                  type="date"
-                  value={customEnd}
-                  min={customStart || minDate}
-                  max={maxDate}
-                  onChange={(e) => onEndChange(e.target.value)}
-                  className="bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-slate-200 text-xs focus:outline-none focus:border-cyan-500"
-                />
-              </div>
-            </div>
-          ) : null}
-
-          <div className="text-xs text-slate-400 bg-slate-950/60 border border-slate-800/80 px-2.5 py-1 rounded-lg">
-            Window sample: <span className="font-mono text-cyan-400 font-semibold">{totalFiltered.toLocaleString()}</span> sessions
+      <div className="flex items-center gap-4 text-sm">
+        {currentHorizon === 'Custom' && (
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
+            <CalendarRange className="w-4 h-4 text-slate-400" />
+            <input type="date" value={customStart} min={minDate} max={customEnd} onChange={e => onStartChange(e.target.value)} className="bg-transparent border-none outline-none text-slate-700 font-mono text-xs" />
+            <span className="text-slate-400">-</span>
+            <input type="date" value={customEnd} min={customStart} max={maxDate} onChange={e => onEndChange(e.target.value)} className="bg-transparent border-none outline-none text-slate-700 font-mono text-xs" />
           </div>
+        )}
+        <div className="text-xs font-medium text-slate-500">
+          <span className="font-mono font-bold text-indigo-600">{totalFiltered.toLocaleString()}</span> sessions analyzed
         </div>
-
       </div>
     </div>
   );
