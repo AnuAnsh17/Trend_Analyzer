@@ -3,48 +3,36 @@ import { MarketDataPoint } from './types';
 import { calculateDescriptiveStats, calculateCovariance, calculateCorrelation } from './math/statistics';
 import { calculateLinearRegression, calculateQuadraticRegression } from './math/regression';
 import { filterDataByHorizon, classifyTrend, computeHorizonComparisons } from './math/analysis';
+import { calculateMarketTools } from './math/marketTools';
 
-import { LandingPage } from './components/LandingPage';
-import { Header } from './components/Header';
-import { HorizonSelector, Horizon } from './components/HorizonSelector';
-import { OverviewTrendTab } from './components/OverviewTrendTab';
-import { StatisticsTab } from './components/StatisticsTab';
-import { HorizonComparisonTab } from './components/HorizonComparisonTab';
-import { ResidualsTab } from './components/ResidualsTab';
+import { OverviewTab } from './components/OverviewTab';
+import { TrendAnalysisTab } from './components/TrendAnalysisTab';
+import { RegressionTab } from './components/RegressionTab';
+import { MarketToolsTab } from './components/MarketToolsTab';
+import { TimeHorizonsTab } from './components/TimeHorizonsTab';
+import { MethodologyTab } from './components/MethodologyTab';
+import { Horizon } from './components/HorizonSelector';
 
-import {
-  TrendingUp,
-  BarChart2,
-  Activity,
-  Layers,
-  Loader2,
-  Download
-} from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export function App() {
-  const [hasStarted, setHasStarted] = useState(false);
   const [data, setData] = useState<MarketDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Horizon State
-  const [horizon, setHorizon] = useState<Horizon>('10Y');
+  const [horizon, setHorizon] = useState<Horizon>('3Y');
   const [customStart, setCustomStart] = useState('2021-01-01');
   const [customEnd, setCustomEnd] = useState('2026-09-11');
 
-  // Navigation Tabs - Simplified
-  type Tab = 'overview' | 'statistics' | 'comparison' | 'residuals';
+  type Tab = 'overview' | 'trend' | 'regression' | 'tools' | 'horizons' | 'methodology';
   const [activeTab, setActiveTab] = useState<Tab>('overview');
 
-  // Fetch Dataset
   useEffect(() => {
     async function loadData() {
       try {
         setLoading(true);
         const res = await fetch('/data/nifty50.json');
-        if (!res.ok) {
-          throw new Error(`Failed to load dataset: HTTP ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json: MarketDataPoint[] = await res.json();
         setData(json);
         if (json.length > 0) {
@@ -52,8 +40,7 @@ export function App() {
           setCustomEnd(json[json.length - 1].Date);
         }
       } catch (err: any) {
-        console.error('Error fetching NIFTY 50 data:', err);
-        setError(err.message || 'Failed to fetch NIFTY 50 data');
+        setError(err.message);
       } finally {
         setLoading(false);
       }
@@ -61,10 +48,8 @@ export function App() {
     loadData();
   }, []);
 
-  const filteredData = useMemo(() => {
-    return filterDataByHorizon(data, horizon, customStart, customEnd);
-  }, [data, horizon, customStart, customEnd]);
-
+  const filteredData = useMemo(() => filterDataByHorizon(data, horizon, customStart, customEnd), [data, horizon, customStart, customEnd]);
+  
   const closes = useMemo(() => filteredData.map(d => d.Close), [filteredData]);
   const stats = useMemo(() => calculateDescriptiveStats(closes), [closes]);
   const cov = useMemo(() => calculateCovariance(closes), [closes]);
@@ -73,118 +58,90 @@ export function App() {
   const poly = useMemo(() => calculateQuadraticRegression(closes), [closes]);
   const trend = useMemo(() => classifyTrend(linear, closes), [linear, closes]);
   const comparisons = useMemo(() => computeHorizonComparisons(data), [data]);
-
-  if (!hasStarted) {
-    return <LandingPage onStart={() => setHasStarted(true)} />;
-  }
+  const marketTools = useMemo(() => calculateMarketTools(filteredData), [filteredData]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-slate-600">
-        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-4" />
-        <p className="text-lg font-medium text-slate-800">Initializing Quantitative Engine...</p>
-      </div>
-    );
+    return <div className="flex items-center justify-center min-h-screen bg-slate-50"><Loader2 className="w-8 h-8 text-slate-800 animate-spin" /></div>;
   }
-
   if (error || data.length === 0) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-rose-600 p-6 text-center">
-        <p className="text-xl font-bold mb-2">Error Loading Dataset</p>
-        <p className="text-sm text-slate-500 max-w-md">{error || 'No records returned from data source.'}</p>
-      </div>
-    );
+    return <div className="flex items-center justify-center min-h-screen bg-slate-50 text-red-600 font-mono text-sm">{error || 'No data'}</div>;
   }
 
-  const latestClose = data[data.length - 1].Close;
-  const prevClose = data.length > 1 ? data[data.length - 2].Close : latestClose;
-
-  const handleExportSummary = () => {
-    // Basic export
-    const report = { generatedAt: new Date().toISOString(), horizon, descriptiveStats: stats, linearOLS: linear, quadraticModel: poly };
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `nifty50_report_${horizon.toLowerCase()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const navTabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'overview', label: 'Overview & Trend', icon: <TrendingUp className="w-4 h-4" /> },
-    { id: 'statistics', label: 'Statistical Models', icon: <BarChart2 className="w-4 h-4" /> },
-    { id: 'comparison', label: 'Multi-Horizon Matrix', icon: <Layers className="w-4 h-4" /> },
-    { id: 'residuals', label: 'Residual Diagnostics', icon: <Activity className="w-4 h-4" /> },
+  const navTabs: { id: Tab; label: string }[] = [
+    { id: 'overview', label: 'OVERVIEW' },
+    { id: 'trend', label: 'TREND ANALYSIS' },
+    { id: 'regression', label: 'REGRESSION' },
+    { id: 'tools', label: 'MARKET TOOLS' },
+    { id: 'horizons', label: 'TIME HORIZONS' },
+    { id: 'methodology', label: 'METHODOLOGY' },
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-indigo-100 selection:text-indigo-900">
+    <div className="min-h-screen bg-[#f4f4f5] text-slate-900 font-sans selection:bg-blue-200">
       
-      <Header data={data} currentClose={latestClose} prevClose={prevClose} onBack={() => setHasStarted(false)} />
+      {/* Terminal Top Bar */}
+      <header className="bg-slate-900 text-slate-300 px-4 py-2 flex flex-col md:flex-row justify-between items-center text-xs font-mono border-b border-slate-700">
+        <div className="flex items-center gap-4">
+          <span className="font-bold text-white tracking-widest">NIFTY 50 STATISTICAL TREND ANALYZER</span>
+          <span className="text-slate-500">v2.0 // QUANT RESEARCH TERMINAL</span>
+        </div>
+        <div className="flex items-center gap-4 mt-2 md:mt-0">
+          <span>DATA: 2016 - 2026</span>
+          <span className="text-emerald-400">STATUS: ONLINE</span>
+        </div>
+      </header>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-500">
+      {/* Main Terminal Area */}
+      <div className="max-w-[1440px] mx-auto p-4 flex flex-col gap-4">
         
-        <HorizonSelector
-          currentHorizon={horizon}
-          onSelect={setHorizon}
-          customStart={customStart}
-          customEnd={customEnd}
-          onStartChange={setCustomStart}
-          onEndChange={setCustomEnd}
-          minDate={data[0]?.Date ?? '2016-08-01'}
-          maxDate={data[data.length - 1]?.Date ?? '2026-09-11'}
-          totalFiltered={filteredData.length}
-        />
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-          <nav className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-            {navTabs.map(t => {
-              const isActive = activeTab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setActiveTab(t.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap cursor-pointer transition-all duration-200 ${
-                    isActive
-                      ? 'bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-200/50'
-                      : 'text-slate-500 hover:text-slate-900 hover:bg-white'
-                  }`}
-                >
-                  {t.icon}
-                  <span>{t.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-          <button
-            onClick={handleExportSummary}
-            className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm transition-colors"
-          >
-            <Download className="w-4 h-4 text-indigo-500" />
-            Export Data
-          </button>
+        {/* Navigation / Control Strip */}
+        <div className="bg-white border border-slate-300 p-2 shadow-sm flex flex-wrap gap-2 text-sm font-medium">
+          {navTabs.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={`px-4 py-1 border transition-colors ${activeTab === t.id ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 md:p-8">
-          {activeTab === 'overview' && (
-            <OverviewTrendTab data={filteredData} linear={linear} poly={poly} trend={trend} />
-          )}
-          {activeTab === 'statistics' && (
-            <StatisticsTab stats={stats} cov={cov} corr={corr} linear={linear} poly={poly} />
-          )}
-          {activeTab === 'comparison' && (
-            <HorizonComparisonTab allData={data} comparisons={comparisons} />
-          )}
-          {activeTab === 'residuals' && (
-            <ResidualsTab data={filteredData} linear={linear} poly={poly} />
-          )}
-        </div>
-      </main>
+        {/* Global Horizon Selector (Only visible for tabs that use filtered data) */}
+        {activeTab !== 'horizons' && activeTab !== 'methodology' && (
+          <div className="bg-white border border-slate-300 px-4 py-2 shadow-sm flex flex-wrap gap-4 items-center text-sm">
+            <span className="font-bold text-slate-700 text-xs tracking-wider">HORIZON:</span>
+            {['1Y', '3Y', '5Y', '10Y', 'Custom'].map(h => (
+              <button
+                key={h}
+                onClick={() => setHorizon(h as Horizon)}
+                className={`px-3 py-0.5 rounded text-xs font-mono font-bold ${horizon === h ? 'bg-blue-100 text-blue-800 border border-blue-300' : 'text-slate-500 hover:text-slate-800'}`}
+              >
+                {h}
+              </button>
+            ))}
+            {horizon === 'Custom' && (
+              <div className="flex items-center gap-2 font-mono text-xs">
+                <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="border border-slate-300 px-1" />
+                <span>-</span>
+                <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="border border-slate-300 px-1" />
+              </div>
+            )}
+            <div className="ml-auto font-mono text-xs text-slate-500">n = {filteredData.length}</div>
+          </div>
+        )}
 
-      <footer className="border-t border-slate-200 bg-white py-6 text-center text-sm text-slate-500 mt-auto">
-        <p>Group 14 Maths Mini Project • NIFTY 50 Analysis</p>
-      </footer>
+        {/* Content Area */}
+        <main className="min-h-[600px]">
+          {activeTab === 'overview' && <OverviewTab data={filteredData} linear={linear} poly={poly} trend={trend} stats={stats} />}
+          {activeTab === 'trend' && <TrendAnalysisTab data={filteredData} linear={linear} poly={poly} trend={trend} stats={stats} corr={corr} />}
+          {activeTab === 'regression' && <RegressionTab data={filteredData} linear={linear} poly={poly} />}
+          {activeTab === 'tools' && <MarketToolsTab data={filteredData} tools={marketTools} />}
+          {activeTab === 'horizons' && <TimeHorizonsTab allData={data} comparisons={comparisons} />}
+          {activeTab === 'methodology' && <MethodologyTab />}
+        </main>
+
+      </div>
     </div>
   );
 }
