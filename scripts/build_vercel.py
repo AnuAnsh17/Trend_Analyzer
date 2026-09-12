@@ -1,7 +1,7 @@
 """
-Build script to package the NIFTY 50 Statistical Trend Analyzer for Vercel deployment.
-Generates public/index.html using stlite (Streamlit WebAssembly) so it can run
-serverlessly on Vercel with 100% uptime, zero timeout limits, and instant CDN delivery.
+Build script to package the NIFTY 50 Statistical Trend Analyzer for static WebAssembly deployment.
+Generates both index.html (root) and public/index.html using stlite so it runs
+with 100% uptime on Vercel, GitHub Pages, or any static CDN.
 """
 import os
 import json
@@ -14,9 +14,8 @@ def build_stlite_package():
 
     files_dict = {}
 
-    # Target files to include in virtual filesystem
     target_files = [
-        "app.py",
+        "streamlit_app.py",
         "data/processed/nifty50_processed.csv",
         "src/__init__.py",
         "src/data/__init__.py",
@@ -43,7 +42,6 @@ def build_stlite_package():
         if full_path.exists():
             with open(full_path, "r", encoding="utf-8") as f:
                 content = f.read()
-            # stlite uses posix style paths
             posix_path = rel_path.replace("\\", "/")
             files_dict[posix_path] = content
         else:
@@ -82,7 +80,7 @@ def build_stlite_package():
 
     stlite.mount({{
       requirements: ["pandas", "numpy", "scipy", "scikit-learn", "plotly"],
-      entrypoint: "app.py",
+      entrypoint: "streamlit_app.py",
       files: files
     }}, document.getElementById("root"));
   </script>
@@ -90,11 +88,17 @@ def build_stlite_package():
 </html>
 """
 
-    index_path = public_dir / "index.html"
-    with open(index_path, "w", encoding="utf-8") as f:
+    # Write to public/index.html
+    public_index = public_dir / "index.html"
+    with open(public_index, "w", encoding="utf-8") as f:
         f.write(html_content)
 
-    print(f"Successfully generated Vercel stlite bundle at: {index_path} ({len(files_dict)} files bundled)")
+    # Write to root index.html
+    root_index = root / "index.html"
+    with open(root_index, "w", encoding="utf-8") as f:
+        f.write(html_content)
+
+    print(f"Successfully generated stlite bundle at:\n - {public_index}\n - {root_index}\n({len(files_dict)} files bundled)")
 
 if __name__ == "__main__":
     build_stlite_package()
