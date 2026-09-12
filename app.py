@@ -697,16 +697,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# Export top-level serverless & WSGI entrypoint for Vercel Python runtime
-def app(environ=None, start_response=None, *args, **kwargs):
-    if callable(start_response):
-        start_response('200 OK', [('Content-Type', 'text/html; charset=utf-8')])
-        from pathlib import Path
-        for p in [Path('public/index.html'), Path(__file__).parent / 'public' / 'index.html']:
-            if p.exists():
-                return [p.read_bytes()]
-        return [b"<h1>NIFTY 50 Statistical Trend Analyzer</h1>"]
-    return {"statusCode": 200, "headers": {"Content-Type": "text/html"}, "body": "NIFTY 50 Statistical Trend Analyzer"}
-
-handler = application = app
