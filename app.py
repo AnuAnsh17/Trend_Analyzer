@@ -167,7 +167,7 @@ st.markdown("""
         font-size: 0.9rem !important;
     }
 </style>
-""", unsafe_allow_dict=True)
+""", unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------
@@ -213,7 +213,7 @@ def main():
         <div class="dash-title">NIFTY 50 Statistical Trend Analyzer</div>
         <div class="dash-subtitle">Statistical modelling of historical NIFTY 50 market trends using regression techniques</div>
     </div>
-    """, unsafe_allow_dict=True)
+    """, unsafe_allow_html=True)
 
     c_meta1, c_meta2, c_meta3, c_meta4, c_meta5 = st.columns(5)
     with c_meta1:
@@ -232,7 +232,7 @@ def main():
         st.caption("DATA STATUS")
         st.markdown(f"**{report.validation_message}**")
 
-    st.markdown("<div style='height: 12px;'></div>", unsafe_allow_dict=True)
+    st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
     # ---------------------------------------------------------
     # Sidebar Controls & Global Horizon Filter
@@ -346,7 +346,7 @@ def main():
                 Linear Slope: <strong>₹{lin.slope:.4f} / trading day</strong> | Normalized Rate: <strong>{trend.normalized_slope_pct:.4f}% / day</strong> (~{trend.annualized_growth:,.0f} ₹/year)
             </div>
         </div>
-        """, unsafe_allow_dict=True)
+        """, unsafe_allow_html=True)
 
         # Primary Interactive Price & Trend Chart with Toggles
         col_ctrl1, col_ctrl2, col_ctrl3 = st.columns([1, 1, 3])
@@ -374,7 +374,7 @@ def main():
                 <div class="math-eq">{lin.equation_str}</div>
                 <div class="math-caption">Coefficient of Determination <strong>R² = {lin.r_squared:.4f}</strong> (explains {lin.r_squared*100:.2f}% of price variance) | RMSE = <strong>₹{analysis_res.linear_metrics.rmse:,.2f}</strong></div>
             </div>
-            """, unsafe_allow_dict=True)
+            """, unsafe_allow_html=True)
         with eq_col2:
             st.markdown(f"""
             <div class="math-card" style="border-left-color: #059669;">
@@ -382,7 +382,7 @@ def main():
                 <div class="math-eq" style="color: #059669;">{quad.equation_str}</div>
                 <div class="math-caption">Coefficient of Determination <strong>R² = {quad.r_squared:.4f}</strong> (explains {quad.r_squared*100:.2f}% of price variance) | RMSE = <strong>₹{analysis_res.quadratic_metrics.rmse:,.2f}</strong></div>
             </div>
-            """, unsafe_allow_dict=True)
+            """, unsafe_allow_html=True)
 
     # =========================================================
     # TAB 2: STATISTICAL ANALYSIS
@@ -451,7 +451,7 @@ def main():
         # SUBTAB 1: LINEAR REGRESSION
         with reg_tab1:
             st.latex(r"y = a + bx, \quad b = \frac{\sum (x_i - \bar{x})(y_i - \bar{y})}{\sum (x_i - \bar{x})^2}, \quad a = \bar{y} - b\bar{x}")
-            st.markdown(f'<div class="math-card"><div class="math-eq">{lin.equation_str}</div></div>', unsafe_allow_dict=True)
+            st.markdown(f'<div class="math-card"><div class="math-eq">{lin.equation_str}</div></div>', unsafe_allow_html=True)
 
             lc1, lc2, lc3, lc4 = st.columns(4)
             with lc1:
@@ -468,7 +468,7 @@ def main():
         # SUBTAB 2: QUADRATIC REGRESSION
         with reg_tab2:
             st.latex(r"y = a + bx + cx^2, \quad \boldsymbol{\beta} = (X^T X)^{-1} X^T \mathbf{y}, \quad \text{where } X = [1, x, x^2]")
-            st.markdown(f'<div class="math-card" style="border-left-color: #059669;"><div class="math-eq" style="color: #059669;">{quad.equation_str}</div></div>', unsafe_allow_dict=True)
+            st.markdown(f'<div class="math-card" style="border-left-color: #059669;"><div class="math-eq" style="color: #059669;">{quad.equation_str}</div></div>', unsafe_allow_html=True)
 
             qc1, qc2, qc3, qc4, qc5 = st.columns(5)
             with qc1:
@@ -698,8 +698,15 @@ def main():
 if __name__ == "__main__":
     main()
 
-# Export top-level serverless variables to prevent Vercel auto-detection errors
-def handler(request=None, *args, **kwargs):
-    return {"statusCode": 200, "body": "NIFTY 50 Statistical Trend Analyzer"}
+# Export top-level serverless & WSGI entrypoint for Vercel Python runtime
+def app(environ=None, start_response=None, *args, **kwargs):
+    if callable(start_response):
+        start_response('200 OK', [('Content-Type', 'text/html; charset=utf-8')])
+        from pathlib import Path
+        for p in [Path('public/index.html'), Path(__file__).parent / 'public' / 'index.html']:
+            if p.exists():
+                return [p.read_bytes()]
+        return [b"<h1>NIFTY 50 Statistical Trend Analyzer</h1>"]
+    return {"statusCode": 200, "headers": {"Content-Type": "text/html"}, "body": "NIFTY 50 Statistical Trend Analyzer"}
 
-app = application = handler
+handler = application = app
